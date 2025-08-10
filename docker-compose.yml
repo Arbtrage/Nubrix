@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  # Base API Server (sample service)
+  base-api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    ports:
+      - "5000:5000"
+    container_name: base-api-server
+    restart: unless-stopped
+
+  # Docker Orchestration API
+  orchestration-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestration
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/host/proc:ro
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    depends_on:
+      - base-api-server
+    restart: unless-stopped
+    container_name: orchestration-api
+
+networks:
+  default:
+    name: nubrixai-network
