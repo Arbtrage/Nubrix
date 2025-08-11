@@ -1,0 +1,16 @@
+[project]
+name = "ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "agno>=1.7.9",
+    "duckduckgo-search>=8.1.1",
+    "fastapi>=0.116.1",
+    "google-genai>=1.29.0",
+    "packaging",
+    "requests>=2.32.4",
+    "uvicorn>=0.35.0",
+    "wikipedia>=1.4.0",
+]

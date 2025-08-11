@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["file:///Users/arbtrage/Documents/Personal/nubrixai/web/app/page.tsx"],"sourcesContent":["\"use client\"\n\nimport Spline from '@splinetool/react-spline/next';\n\nexport default function Home() {\n  return (\n    <main>\n      <Spline\n        scene=\"https://prod.spline.design/d3om-BURWI-fQ-FQ/scene.splinecode\" \n      />\n    </main>\n  );\n}"],"names":[],"mappings":";;;;AAEA;AAFA;;;AAIe,SAAS;IACtB,qBACE,6WAAC;kBACC,cAAA,6WAAC,4XAAA,CAAA,UAAM;YACL,OAAM;;;;;;;;;;;AAId","debugId":null}}]
+}

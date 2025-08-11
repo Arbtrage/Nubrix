@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Streaming Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .output {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            min-height: 200px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .event-type {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .content {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🤖 AI Agent Streaming Demo</h1>
+
+        <div class="input-group">
+            <label for="prompt">Enter your prompt:</label>
+            <input type="text" id="prompt" placeholder="Tell me a story about space exploration..."
+                value="Tell me a story about space exploration">
+        </div>
+
+        <div class="input-group">
+            <button onclick="startStreaming()" id="streamBtn">Start Streaming</button>
+            <button onclick="stopStreaming()" id="stopBtn" disabled>Stop Streaming</button>
+            <button onclick="clearOutput()">Clear Output</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div class="output" id="output">Ready to start streaming...</div>
+    </div>
+
+    <script>
+        let isStreaming = false;
+
+        function updateStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+        }
+
+        async function startStreaming() {
+            if (isStreaming) return;
+
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+
+            isStreaming = true;
+            document.getElementById('streamBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('output').textContent = 'Starting stream...\n';
+
+            updateStatus('Connecting to stream...', 'connecting');
+
+            try {
+                // Use fetch with POST method for streaming
+                const response = await fetch('http://localhost:8000/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                // Read the stream
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                displayEvent(data);
+                            } catch (e) {
+                                console.error('Error parsing event:', e);
+                            }
+                        }
+                    }
+                }
+
+                updateStatus('Stream completed', 'connected');
+            } catch (error) {
+                console.error('Streaming error:', error);
+                updateStatus('Stream error occurred', 'error');
+            } finally {
+                stopStreaming();
+            }
+        }
+
+        function displayEvent(data) {
+            const output = document.getElementById('output');
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'content';
+
+            let content = '';
+            switch (data.type) {
+                case 'content':
+                    content = `📝 Content: ${data.content}`;
+                    break;
+                case 'tool_call':
+                    content = `🔧 Tool Call Started: ${data.tool.name || 'Unknown Tool'}`;
+                    if (data.tool.description) {
+                        content += ` - ${data.tool.description}`;
+                    }
+                    if (data.tool.arguments && Object.keys(data.tool.arguments).length > 0) {
+                        content += `\nArguments: ${JSON.stringify(data.tool.arguments, null, 2)}`;
+                    }
+                    break;
+                case 'tool_completed':
+                    content = `✅ Tool Completed: ${data.tool.name || 'Unknown Tool'}`;
+                    if (data.tool.result) {
+                        content += ` - Result: ${data.tool.result}`;
+                    }
+                    if (data.tool.output) {
+                        content += `\nOutput: ${data.tool.output}`;
+                    }
+                    break;
+                case 'reasoning':
+                    content = `🧠 Reasoning: ${data.content}`;
+                    break;
+                case 'end':
+                    content = `✅ Stream completed`;
+                    stopStreaming();
+                    break;
+                case 'error':
+                    content = `❌ Error: ${data.error}`;
+                    updateStatus('Error in stream', 'error');
+                    break;
+                case 'event_error':
+                    content = `⚠️ Event Error: ${data.error}`;
+                    break;
+                case 'unknown':
+                    content = `📡 Unknown Event: ${data.event_type} - ${data.data}`;
+                    break;
+                default:
+                    content = `📡 Event: ${JSON.stringify(data)}`;
+            }
+
+            eventDiv.innerHTML = `<div class="event-type">${data.type.toUpperCase()}</div>${content}`;
+            output.appendChild(eventDiv);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function stopStreaming() {
+            isStreaming = false;
+            document.getElementById('streamBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateStatus('Stream stopped', '');
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = 'Ready to start streaming...\n';
+            document.getElementById('status').style.display = 'none';
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function () {
+            // Cleanup any ongoing streams if needed
+        });
+    </script>
+</body>
+
+</html>
